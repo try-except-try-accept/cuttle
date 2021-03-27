@@ -81,18 +81,21 @@ def get_player_names():
             names.append(n)
     return names
 
+def draw_card(name, deck):
+    card = deck.pop(0)
+    print(f"{name} drew a {card.get_name()}")
+    return card
+
+
 def deal_hands(names, deck, dealer):
     print()
     p1, p2 = [], []
     for i in range(6):
         if i < 6 or dealer:
-            card = deck.pop(0)
-            p1.append(card)
-            print(f"{names[0]} drew a {card.get_name()}")
+            p1.append(draw_card(names[0], deck))
+
         if i < 6 or dealer:
-            card = deck.pop(0)
-            p2.append(card)
-            print(f"{names[1]} drew a {card.get_name()}")
+            p2.append(draw_card(names[1], deck))
     print()
     return p1, p2
 
@@ -113,7 +116,7 @@ def display_hands(current_player, other_player):
         print(f"{p.name}'s cards:")
         print()
         cards_to_show = [p.hand, p.points, p.perms]
-        print("{:<30}{:<30}{:<30}".format("HAND", "POINTS CARDS:", "PERMANENT EFFECTS:"))
+        print("{:<30}{:<30}{:<30}".format("CURRENT HAND:", "POINTS CARDS:", "PERMANENT EFFECTS:"))
 
         biggest_list = len(max(cards_to_show, key=len))
         for j in range(biggest_list):
@@ -162,11 +165,7 @@ def validate_choice(current_player, other_player, choice):
 
     return False
 
-def validate_card(other_player, choice):
-    return True
-
-
-def select_card(hand, choice):
+def select_card(hand):
     valid = list(map(str, range(1, len(hand))))
     for i, card in enumerate(hand):
         print("Enter 1 to choose the", card.get_name())
@@ -176,16 +175,13 @@ def select_card(hand, choice):
 
     chosen_card = hand.pop(int(choice)-1)
 
-    return chosen_card, hand
+    return chosen_card
 
 def game():
 
     deck = create_deck()
     names = get_player_names()
 
-
-    p1_points = 0
-    p2_points = 0
     to_win = 21
 
     p1_win = False
@@ -219,11 +215,17 @@ def game():
             print(MENU)
 
             choice = input()
-            if validate_choice(current_player, other_player, choice):
-                card, hand = select_card(current_player, choice)
-                if validate_card(other_player, choice):
-                    process_move(card, current_player, other_player, choice)
-                move_complete = True
+
+            if choice in ["2", "3", "4"]:
+                card = select_card(current_player.hand)
+                process_move()
+
+            elif choice == "1":
+                display_hands(current_player, other_player)
+
+            elif choice == "5":
+                current_player.hand.append(draw_card(current_player.name, deck))
+
 
 
 
