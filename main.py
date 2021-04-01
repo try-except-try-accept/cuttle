@@ -1,6 +1,6 @@
 from random import randint, shuffle, choice as rand_choice
 
-SUITS = "SHDC"
+SUITS = list("SHDC")
 
 MENU = """1. View your hand.
 2. Play a points card.
@@ -12,6 +12,8 @@ SCUTTLE = "4"
 EFFECT = "3"
 POINTS = "2"
 
+TESTING = True
+
 def get_menu_choice(name):
     choice = input()
     if choice in ["1","2","3","4","5"]:
@@ -22,13 +24,12 @@ def get_menu_choice(name):
     return None
 
 class Card:
-    def __init__(self, code):
-        self.code = code
-        self.rank = int(code[0]) if code[0].isdigit() else 0
+    def __init__(self, s, r):
+        self.suit = s
+        self.rank = r
         self.points_possible = False
-        if self.rank:
+        if self.rank < 11:
             self.points_possible = True
-        self.suit = SUITS.index(code[1]) if code[1] in SUITS else None
         self.steal = None
 
     def __gt__(self, other):
@@ -46,15 +47,14 @@ class Card:
         return self.get_name()
 
     def get_name(self):
-        if self.code == "JR":
-            return "The Red Joker!"
-        elif self.code == "JB":
-            return "The Black Joker!"
-        r, s = self.code
+        r = self.rank
         suits = {"C": "Clubs", "S": "Spades", "D": "Diamonds", "H": "Hearts"}
-        ranks = {"1": "Ace", "J": "Jack", "Q": "Queen", "K": "King"}
+        ranks = {1: "Ace", 11: "Jack", 12: "Queen", 13: "King", 14:"Joker"}
         r = ranks[r] if r in ranks else r
-        return "The " + r + " of " + suits[s]
+        if r == "Joker":
+            return "The {} {}!".format(self.suit, r)
+        else:
+            return f"The {r} of {suits[self.suit]}"
 
 
 class Player:
@@ -84,16 +84,20 @@ class Player:
         return any([card.rank == "8" for card in self.perms])
 
     def calculate_points_needed_win(self):
-        kings = len([card for card in self.perms if card.code[0] == "K"])
+        kings = len([card for card in self.perms if card.rank == "K"])
         return {0:21, 1:14, 2:10, 3:7, 4:5}[kings]
 
 
 def create_deck():
-    values = "".join(map(str, range(1, 11))) + "JQK"
+
     # flatten 2d list to 1d with sum(), add jokers and instantiate card objects
-    all_codes = sum([[r+s for s in SUITS] for r in values], []) + ["JR", "JB"]
-    deck = [Card(code) for code in all_codes]
-    shuffle(deck)
+    deck = []
+    for s in SUITS:
+        [deck.append(Card(s, r)) for r in range(1, 14)]
+    deck.append(Card("Red", 14))
+    deck.append(Card("Black", 14))
+    if not TESTING:
+        shuffle(deck)
     return deck
 
 def get_player_names():
@@ -121,6 +125,10 @@ def deal_hands(names, deck, dealer):
         if i < 6 or dealer:
             p2.append(draw_card(names[1], deck))
     print()
+
+    if TESTING:
+        for i in range(13):
+            p1.append(draw_card(names[0], deck))
     return p1, p2
 
 def display_card(cards, index):
@@ -230,7 +238,7 @@ def process_move(card, current_player, other_player, action, discard_pile, deck)
         elif card.rank == 5:
             print("DRAW 2!")
             for i in range(2):
-                current_player.hand += draw_card(current_player.name, deck)
+                current_player.hand += [draw_card(current_player.name, deck)]
 
         elif card.rank == 6:
             print("SCRAP ALL PERMANENT EFFECTS!")
@@ -249,13 +257,14 @@ def process_move(card, current_player, other_player, action, discard_pile, deck)
             one_off = False
             print("GOGGLES!")
             print(f"{current_player.name} can now view {other_player.name}'s hand.")
-            current_player.perms += card
+            current_player.perms += [card]
 
         elif card.rank == 9:
             print("RETURN 1 PERMANENT EFFECT.")
             if not len(other_player.perms):
                 print(f"{other_player.name} has no permanent effect cards to return!")
                 return False
+
 
             print(f"{current_player.name}, choose which of {other_player.name}'s permanent effect cards to return to the deck.")
             perm_card = select_card(other_player.perms)
@@ -268,7 +277,7 @@ def process_move(card, current_player, other_player, action, discard_pile, deck)
                 perm_card.steal = None
             deck = [perm_card] + deck
 
-        elif card.code[0] == "J":
+        elif card.rank == 11:
             one_off = False
             if not len(other_player.points):
                 print(f"{other_player.name} has no points cards to steal!")
@@ -281,16 +290,16 @@ def process_move(card, current_player, other_player, action, discard_pile, deck)
             other_player.points.remove(points_card)
             card.steal = points_card
             current_player.points.append(points_card)
-            current_player.perms += card
+            current_player.perms += [card]
 
-        elif card.code[0] == "Q":
+        elif card.rank == 12:
             print("QUEEN DEFENCE!")
             print(f"{current_player.name} is now protected against 2, 9 and J effects!")
-            current_player.perms += card
+            current_player.perms += [card]
 
-        elif card.code[0] == "K":
+        elif card.rank == 13:
             print("REDUCE POINTS NEEDED TO WIN.")
-            current_player.perms += card
+            current_player.perms += [card]
             print(f"{current_player.name} now only needs {current_player.calculate_points_needed_win()} points to win.")
 
         else:
